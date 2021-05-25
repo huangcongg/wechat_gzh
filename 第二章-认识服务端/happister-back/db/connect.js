@@ -1,6 +1,7 @@
 const mongoose = require('mongoose')
+const {mongoip} = require('../config')
 
-mongoose.connect('mongodb://127.0.0.1:27017/weixin', (err) => {
+mongoose.connect(`mongodb://${mongoip}/weixin`, (err) => {
   if(err){
     console.log('数据库连接失败');
   }else{

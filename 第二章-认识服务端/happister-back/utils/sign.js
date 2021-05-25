@@ -1,18 +1,59 @@
 let {appid, secret} = require('../config')
 let axios = require('axios')
 let sha1 = require('sha1')
+let ticketModel = require('../db/models/ticketModel')
 
 async function getTicket() { // 获取ticket的方法函数
-  let tokenUrl = `https://api.weixin.qq.com/cgi-bin/token?grant_type=client_credential&appid=${appid}&secret=${secret}`
-  let token_data = await axios.get(tokenUrl)
-  console.log('token_data', token_data.data);
-  let access_token = token_data.data.access_token // 得到access_token
 
-  let ticketUrl = `https://api.weixin.qq.com/cgi-bin/ticket/getticket?access_token=${access_token}&type=jsapi`
-  let ticket_data = await axios.get(ticketUrl) // 得到jsapi_ticket
-  console.log('ticket', ticket_data.data);
-  return ticket_data.data.ticket
+  let tik_data = await ticketModel.find();
+  let access_token = '';
+  let ticket = '';
+  if(tik_data.length>0){ // 判断数据库是否存储过ticket
+  	let t = new Date().getTime() - tik_data[0].token_time;
+  	if(t>7000000){ // 是否过期
+  		// 重新获取
+      await loadData();
+      let {_id} = tik_data[0];
+      let time = new Date().getTime();
+      await ticketModel.update({_id}, { // 更新数据库中已过期的access_token
+        access_token,
+        token_time:time,
+        ticket,
+        ticket_time:time
+      })
+  	}else{
+  		access_token = tik_data[0].access_token;
+		  ticket = tik_data[0].ticket;
+  	}
+  }else{
+  	//重新获取
+    await loadData();
+    let time = new Date().getTime();
+    await new ticketModel({ //如果是第一次获取access_token，则对数据库进行新增操作
+      access_token,
+      token_time:time,
+      ticket,
+      ticket_time:time
+    }).save()
+  }
+  async function loadData(){
+    let tokenUrl = `https://api.weixin.qq.com/cgi-bin/token?grant_type=client_credential&appid=${appid}&secret=${secret}`
+    let token_data = await axios.get(tokenUrl)
+    // console.log('token_data', token_data.data);
+    access_token = token_data.data.access_token // 得到access_token
+  
+    let ticketUrl = `https://api.weixin.qq.com/cgi-bin/ticket/getticket?access_token=${access_token}&type=jsapi`
+    let ticket_data = await axios.get(ticketUrl) // 得到jsapi_ticket
+    
+    ticket =  ticket_data.data.ticket
+  }
+
+  return {
+    access_token,
+    ticket
+  }
 }
+
 
 let createNonceStr = function(){
   return Math.random().toString(36).substr(2,15)
@@ -24,10 +65,10 @@ let createTimestamp =  function(){
 
 let sign = async function(url) {
   
-  let jsapi_ticket = await getTicket()
+  let {ticket} = await getTicket()
   
   let obj = {
-    jsapi_ticket,
+    jsapi_ticket: ticket,
     noncestr: createNonceStr(),
     timestamp: createTimestamp(),
     url
