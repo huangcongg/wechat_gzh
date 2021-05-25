@@ -1,0 +1,56 @@
+<html>
+
+<head>
+  <title>Express</title>
+  <link rel="stylesheet" href="/stylesheets/style.css">
+  <script src="http://res.wx.qq.com/open/js/jweixin-1.6.0.js"></script>
+  <script src="https://cdn.bootcss.com/axios/0.19.2/axios.min.js"></script>
+  <script src="https://cdn.bootcss.com/vue/2.6.11/vue.min.js"></script>
+</head>
+
+<body>
+  <div id="app">
+    <h1>Express</h1>
+    <p @click="scanCode">扫描二维码</p>
+  </div>
+</body>
+<script>
+  
+
+  new Vue({
+    el: '#app',
+    mounted() {
+      this.wxconfig()
+    },
+    methods: {
+      wxconfig() {
+        let url = encodeURIComponent(location.href.split('#')[0])
+        axios.get('http://localhost:3000/jsapi?url='+url).then((result) => {
+          let {appid, timestamp, noncestr, signature} =  result.data
+          console.log(result.data);
+          wx.config({
+            debug: true,
+            appId: appid,
+            timestamp,
+            nonceStr: noncestr,
+            signature,
+            jsApiList: [
+              'scanQRCode'
+            ]
+          })
+        })
+      },
+      scanCode(){
+        wx.scanQRCode({
+          needResult: 0, // 默认为0，扫描结果由微信处理，1则直接返回扫描结果，
+          scanType: ["qrCode","barCode"], // 可以指定扫二维码还是一维码，默认二者都有
+          success: function (res) {
+            var result = res.resultStr; // 当needResult 为 1 时，扫码返回的结果
+            console.log(result);
+          }
+        });
+      }
+    }
+  })
+</script>
+</html>
